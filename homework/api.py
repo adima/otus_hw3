@@ -36,13 +36,19 @@ GENDERS = {
 }
 
 
-class CharField(object):
-    def __init__(self, required, nullable):
+class BaseField(object):
+    def __init__(self, required=False, nullable=True):
         self.required = required
         self.nullable = nullable
 
+class CharField(BaseField):
+    pass
+    # def __init__(self):
+        # super(CharField, self).__init__()
+        # pass
 
-class ArgumentsField(object):
+
+class ArgumentsField(BaseField):
     pass
 
 
@@ -50,26 +56,24 @@ class EmailField(CharField):
     pass
 
 
-class PhoneField(object):
+class PhoneField(CharField):
     pass
 
 
-class DateField(object):
+class DateField(BaseField):
     pass
 
 
-class BirthDayField(object):
+class BirthDayField(BaseField):
     pass
 
 
-class GenderField(object):
+class GenderField(BaseField):
     pass
 
 
-class ClientIDsField(object):
-    def __init__(self, required, nullable):
-        self.required = required
-        self.nullable = nullable
+class ClientIDsField(BaseField):
+    pass
 
 
 class ClientsInterestsRequest(object):
