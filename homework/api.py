@@ -10,6 +10,8 @@ import uuid
 from optparse import OptionParser
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
+from scoring import get_interests, get_score
+
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
 ADMIN_SALT = "42"
@@ -112,10 +114,18 @@ def check_auth(request):
     return False
 
 
-def method_handler(request, ctx, store):
-    response, code = None, None
-    return response, code
+# def method_handler(request, ctx, store):
+#     response, code = None, None
+#     return response, code
 
+
+def method_handler(request, ctx, store):
+    if request['body']['method'] == 'online_score':
+        if 'phone' in request['body']['arguments'].keys():
+            response = get_score(**request['body']['arguments'])
+            return {'score': response}, OK
+        else:
+            return "Fuck off", INVALID_REQUEST
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
@@ -162,16 +172,24 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    op = OptionParser()
-    op.add_option("-p", "--port", action="store", type=int, default=8080)
-    op.add_option("-l", "--log", action="store", default=None)
-    (opts, args) = op.parse_args()
-    logging.basicConfig(filename=opts.log, level=logging.INFO,
-                        format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
-    server = HTTPServer(("localhost", opts.port), MainHTTPHandler)
-    logging.info("Starting server at %s" % opts.port)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    server.server_close()
+    # op = OptionParser()
+    # op.add_option("-p", "--port", action="store", type=int, default=8080)
+    # op.add_option("-l", "--log", action="store", default=None)
+    # (opts, args) = op.parse_args()
+    # logging.basicConfig(filename=opts.log, level=logging.INFO,
+    #                     format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
+    # server = HTTPServer(("localhost", opts.port), MainHTTPHandler)
+    # logging.info("Starting server at %s" % opts.port)
+    # try:
+    #     server.serve_forever()
+    # except KeyboardInterrupt:
+    #     pass
+    # server.server_close()
+    context = {}
+    headers = {}
+    settings = {}
+    arguments = {'phone': '79175002040', 'email': 'stupnikov@otus.ru'}
+    request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
+    request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
+    response, code = method_handler({"body": request, "headers": headers}, context, settings)
+    print(response, code)
