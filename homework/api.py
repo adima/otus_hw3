@@ -39,9 +39,33 @@ GENDERS = {
 
 
 class BaseField(object):
-    def __init__(self, required=False, nullable=True):
+    def __init__(self, required=False, nullable=True, value=None):
         self.required = required
         self.nullable = nullable
+        self.value_ = None
+        if value:
+            self.set_value(value)
+
+    def check_value(self, value):
+        return True
+
+    @property
+    def value(self):
+        return self.value_
+
+    @value.setter
+    def value(self, value):
+        if self.check_value(value):
+            self.value_ = value
+
+    @property
+    def is_correct(self):
+        if (not self.nullable or self.required) and self.value is None:
+            is_correct = False
+        else:
+            is_correct = True
+        return is_correct
+
 
 class CharField(BaseField):
     pass
@@ -91,6 +115,19 @@ class OnlineScoreRequest(object):
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
 
+    def __init__(self, first_name=None, last_name=None, email=None,
+                 phone=None, birthday=None, gender=None):
+        self.first_name.value = first_name
+        self.last_name.value = last_name
+        self.email.value = email
+        self.phone.value = phone
+        self.birthday.value = birthday
+        self.gender.value = gender
+
+    @property
+    def is_correct(self):
+        fields_correct = all([field.is_correct for field in self.__dict__.keys() if hasattr(field, 'is_correct')])
+        return fields_correct
 
 class MethodRequest(object):
     account = CharField(required=False, nullable=True)
@@ -102,6 +139,9 @@ class MethodRequest(object):
     @property
     def is_admin(self):
         return self.login == ADMIN_LOGIN
+
+
+
 
 
 def check_auth(request):
@@ -123,9 +163,13 @@ def method_handler(request, ctx, store):
     if request['body']['method'] == 'online_score':
         if 'phone' in request['body']['arguments'].keys():
             response = get_score(**request['body']['arguments'])
-            return {'score': response}, OK
+            code = OK
+
         else:
-            return "Fuck off", INVALID_REQUEST
+            response = 'wrong fields'
+            code = INVALID_REQUEST
+
+    return response, code
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
