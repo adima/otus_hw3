@@ -102,9 +102,24 @@ class ClientIDsField(BaseField):
     pass
 
 
+field_types = [CharField, ArgumentsField, EmailField, PhoneField, DateField, BirthDayField,
+               GenderField, ClientIDsField]
+
+# TODO IsCorrect mixIn?
+
 class ClientsInterestsRequest(object):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
+
+    def __init__(self, client_ids=None, date=None):
+        self.client_ids = client_ids
+        self.date = date
+
+    @property
+    def is_correct(self):
+        fields_correct = all([field.is_correct for field in self.__dict__.keys() if hasattr(field, 'is_correct')])
+        return fields_correct
+
 
 
 class OnlineScoreRequest(object):
@@ -124,17 +139,31 @@ class OnlineScoreRequest(object):
         self.birthday.value = birthday
         self.gender.value = gender
 
+
+    def get_fields(self):
+        return (field.is_correct for field in self.__dict__.keys() if hasattr(field, 'is_correct'))
+
     @property
     def is_correct(self):
         fields_correct = all([field.is_correct for field in self.__dict__.keys() if hasattr(field, 'is_correct')])
         return fields_correct
 
+    @property
+    def arguments(self):
+        return {}
 class MethodRequest(object):
     account = CharField(required=False, nullable=True)
     login = CharField(required=True, nullable=True)
     token = CharField(required=True, nullable=True)
     arguments = ArgumentsField(required=True, nullable=True)
     method = CharField(required=True, nullable=False)
+
+    def __init__(self, login, token, arguments, method, account=None):
+        self.account.value = account
+        self.login.value = login
+        self.token.value = token
+        self.arguments.value = arguments
+        self.method.value = method
 
     @property
     def is_admin(self):
@@ -160,14 +189,29 @@ def check_auth(request):
 
 
 def method_handler(request, ctx, store):
-    if request['body']['method'] == 'online_score':
-        if 'phone' in request['body']['arguments'].keys():
+    # score_type_map = {
+    #     'online_score': OnlineScoreRequest,
+    #     'clients_interesets': ClientsInterestsRequest
+    # }
+    request_body = MethodRequest(**request['body'])
+
+    # request_type = score_type_map[request_body.method]
+
+    if request_body.method == 'online_score':
+        online_request = OnlineScoreRequest(**request_body.arguments)
+        if online_request.is_correct and not request_body.is_admin:
             response = get_score(**request['body']['arguments'])
+            code = OK
+        elif online_request.is_correct and request_body.is_admin:
+            response = 42
             code = OK
 
         else:
             response = 'wrong fields'
             code = INVALID_REQUEST
+
+    elif request['body']['method'] == 'clients_interesets':
+        online_request = ClientsInterestsRequest(**request_body.arguments)
 
     return response, code
 
@@ -232,8 +276,10 @@ if __name__ == "__main__":
     context = {}
     headers = {}
     settings = {}
-    arguments = {'phone': '79175002040', 'email': 'stupnikov@otus.ru'}
-    request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
+    # arguments = {'email': 'stupnikov@otus.ru', 'phone': '79175002040'}
+    arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}
+    # request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
+    request = {"account": "horns&hoofs", "login": "admin", "method": "online_score", "arguments": arguments}
     request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
     response, code = method_handler({"body": request, "headers": headers}, context, settings)
     print(response, code)
