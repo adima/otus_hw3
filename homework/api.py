@@ -11,6 +11,7 @@ from optparse import OptionParser
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
 from scoring import get_interests, get_score
+from weakref import WeakKeyDictionary
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -39,40 +40,22 @@ GENDERS = {
 
 
 class BaseField(object):
-    def __init__(self, required=False, nullable=True, value=None):
+    def __init__(self, required=False, nullable=True):
         self.required = required
         self.nullable = nullable
-        self.value_ = None
-        if value:
-            self.set_value(value)
+        self.data = WeakKeyDictionary
 
-    def check_value(self, value):
-        return True
+    def __get__(self, instance, owner):
+        return self.data.get(instance)
 
-    @property
-    def value(self):
-        return self.value_
+    def __set__(self, instance, value):
+        self.data[instance] = value
 
-    @value.setter
-    def value(self, value):
-        if self.check_value(value):
-            self.value_ = value
 
-    @property
-    def is_correct(self):
-        if (not self.nullable or self.required) and self.value is None:
-            is_correct = False
-        else:
-            is_correct = True
-        return is_correct
 
 
 class CharField(BaseField):
     pass
-    # def __init__(self):
-        # super(CharField, self).__init__()
-        # pass
-
 
 class ArgumentsField(BaseField):
     pass
@@ -105,52 +88,54 @@ class ClientIDsField(BaseField):
 field_types = [CharField, ArgumentsField, EmailField, PhoneField, DateField, BirthDayField,
                GenderField, ClientIDsField]
 
-# TODO IsCorrect mixIn?
+
+class OnlineRequest(object):
+    fields = []
+
+    @staticmethod
+    def check_field(field):
+        # type_correct = field._type_check()
+        if (not field.nullable or field.required) and field is None:
+            is_correct = False
+        else:
+            is_correct = True
+        return is_correct #* type_correct
+
+    @property
+    def is_correct(self):
+        correct = all(self.check_field(field) for field in self.fields)
+        return correct
+
 
 class ClientsInterestsRequest(object):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
+    fields = [client_ids, date]
 
     def __init__(self, client_ids=None, date=None):
         self.client_ids = client_ids
         self.date = date
 
-    @property
-    def is_correct(self):
-        fields_correct = all([field.is_correct for field in self.__dict__.keys() if hasattr(field, 'is_correct')])
-        return fields_correct
 
-
-
-class OnlineScoreRequest(object):
+class OnlineScoreRequest(OnlineRequest):
     first_name = CharField(required=False, nullable=True)
     last_name = CharField(required=False, nullable=True)
     email = EmailField(required=False, nullable=True)
     phone = PhoneField(required=False, nullable=True)
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
+    fields = [first_name, last_name, email, phone, birthday, gender]
 
     def __init__(self, first_name=None, last_name=None, email=None,
                  phone=None, birthday=None, gender=None):
-        self.first_name.value = first_name
-        self.last_name.value = last_name
-        self.email.value = email
-        self.phone.value = phone
-        self.birthday.value = birthday
-        self.gender.value = gender
+        self.first_name = first_name
+        self.last_name = last_name
+        self.email = email
+        self.phone = phone
+        self.birthday = birthday
+        self.gender = gender
 
 
-    def get_fields(self):
-        return (field.is_correct for field in self.__dict__.keys() if hasattr(field, 'is_correct'))
-
-    @property
-    def is_correct(self):
-        fields_correct = all([field.is_correct for field in self.__dict__.keys() if hasattr(field, 'is_correct')])
-        return fields_correct
-
-    @property
-    def arguments(self):
-        return {}
 class MethodRequest(object):
     account = CharField(required=False, nullable=True)
     login = CharField(required=True, nullable=True)
