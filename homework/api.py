@@ -43,26 +43,51 @@ class BaseField(object):
     def __init__(self, required=False, nullable=True):
         self.required = required
         self.nullable = nullable
-        self.data = WeakKeyDictionary
+        self.data = WeakKeyDictionary()
 
     def __get__(self, instance, owner):
-        return self.data.get(instance)
+        return self.data.get(instance)#, self.required, self.nullable
 
     def __set__(self, instance, value):
-        self.data[instance] = value
+        if self.is_valid(value):
+            self.data[instance] = value
+        else:
+            raise ValueError("Invalid format of field " + str(self) )
+
+    def is_valid(self, value):
+        return True
 
 
 
 
 class CharField(BaseField):
-    pass
+    def is_valid(self, value):
+        if isinstance(value, str) or isinstance(value, unicode):
+            valid = True
+        else:
+            valid = False
+        return valid
 
 class ArgumentsField(BaseField):
-    pass
+    def is_valid(self, value):
+        valid = False
+        if isinstance(value, dict):
+            valid = True
+        return valid
 
 
 class EmailField(CharField):
-    pass
+    def is_valid(self, value):
+        valid_parent = super(EmailField, self).is_valid(value)
+        if not valid_parent:
+            valid = False
+        else:
+            if '@' in value:
+                valid = True
+            else:
+                valid = False
+        return valid
+
 
 
 class PhoneField(CharField):
@@ -85,17 +110,14 @@ class ClientIDsField(BaseField):
     pass
 
 
-field_types = [CharField, ArgumentsField, EmailField, PhoneField, DateField, BirthDayField,
-               GenderField, ClientIDsField]
-
 
 class OnlineRequest(object):
     fields = []
 
-    @staticmethod
-    def check_field(field):
+
+    def check_field(self, field):
         # type_correct = field._type_check()
-        if (not field.nullable or field.required) and field is None:
+        if (not field.nullable or field.required) and field.__get__(self, type(self)) is None:
             is_correct = False
         else:
             is_correct = True
@@ -126,14 +148,10 @@ class OnlineScoreRequest(OnlineRequest):
     gender = GenderField(required=False, nullable=True)
     fields = [first_name, last_name, email, phone, birthday, gender]
 
-    def __init__(self, first_name=None, last_name=None, email=None,
-                 phone=None, birthday=None, gender=None):
-        self.first_name = first_name
-        self.last_name = last_name
-        self.email = email
-        self.phone = phone
-        self.birthday = birthday
-        self.gender = gender
+    def __init__(self, arguments):
+        if arguments is None:
+            pass
+
 
 
 class MethodRequest(object):
@@ -148,7 +166,7 @@ class MethodRequest(object):
         self.login.value = login
         self.token.value = token
         self.arguments.value = arguments
-        self.method.value = method
+        self.method = method
 
     @property
     def is_admin(self):
@@ -258,13 +276,19 @@ if __name__ == "__main__":
     # except KeyboardInterrupt:
     #     pass
     # server.server_close()
-    context = {}
-    headers = {}
-    settings = {}
-    # arguments = {'email': 'stupnikov@otus.ru', 'phone': '79175002040'}
-    arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}
-    # request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
-    request = {"account": "horns&hoofs", "login": "admin", "method": "online_score", "arguments": arguments}
-    request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
-    response, code = method_handler({"body": request, "headers": headers}, context, settings)
-    print(response, code)
+
+    # context = {}
+    # headers = {}
+    # settings = {}
+    # # arguments = {'email': 'stupnikov@otus.ru', 'phone': '79175002040'}
+    # arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}
+    # # request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
+    # request = {"account": "horns&hoofs", "login": "admin", "method": "online_score", "arguments": arguments}
+    # request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
+    # response, code = method_handler({"body": request, "headers": headers}, context, settings)
+    # print(response, code)
+
+   online_score_request = OnlineScoreRequest(None)
+   online_score_request.email = 'dfas@fd'
+   res = online_score_request.is_correct
+   print(res)
