@@ -161,7 +161,7 @@ class MethodRequest(object):
     arguments = ArgumentsField(required=True, nullable=True)
     method = CharField(required=True, nullable=False)
 
-    def __init__(self, login, token, arguments, method, account=None):
+    def __init__(self, login=None, token=None, arguments=None, method=None, account=None):
         self.account.value = account
         self.login.value = login
         self.token.value = token
@@ -192,29 +192,28 @@ def check_auth(request):
 
 
 def method_handler(request, ctx, store):
-    # score_type_map = {
-    #     'online_score': OnlineScoreRequest,
-    #     'clients_interesets': ClientsInterestsRequest
-    # }
-    request_body = MethodRequest(**request['body'])
 
-    # request_type = score_type_map[request_body.method]
+    if request['body']:
+        request_body = MethodRequest(**request['body'])
 
-    if request_body.method == 'online_score':
-        online_request = OnlineScoreRequest(**request_body.arguments)
-        if online_request.is_correct and not request_body.is_admin:
-            response = get_score(**request['body']['arguments'])
-            code = OK
-        elif online_request.is_correct and request_body.is_admin:
-            response = 42
-            code = OK
+        if request_body.method == 'online_score':
+            online_request = OnlineScoreRequest(**request_body.arguments)
+            if online_request.is_correct and not request_body.is_admin:
+                response = get_score(**request['body']['arguments'])
+                code = OK
+            elif online_request.is_correct and request_body.is_admin:
+                response = 42
+                code = OK
 
-        else:
-            response = 'wrong fields'
-            code = INVALID_REQUEST
+            else:
+                response = 'wrong fields'
+                code = INVALID_REQUEST
 
-    elif request['body']['method'] == 'clients_interesets':
-        online_request = ClientsInterestsRequest(**request_body.arguments)
+        elif request['body']['method'] == 'clients_interesets':
+            online_request = ClientsInterestsRequest(**request_body.arguments)
+
+    else:
+        response, code = 'Empty request', INVALID_REQUEST
 
     return response, code
 
@@ -277,18 +276,19 @@ if __name__ == "__main__":
     #     pass
     # server.server_close()
 
-    # context = {}
-    # headers = {}
-    # settings = {}
-    # # arguments = {'email': 'stupnikov@otus.ru', 'phone': '79175002040'}
+    context = {}
+    headers = {}
+    settings = {}
+    # arguments = {'email': 'stupnikov@otus.ru', 'phone': '79175002040'}
     # arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}
-    # # request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
+    # request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
     # request = {"account": "horns&hoofs", "login": "admin", "method": "online_score", "arguments": arguments}
     # request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
-    # response, code = method_handler({"body": request, "headers": headers}, context, settings)
-    # print(response, code)
-
-   online_score_request = OnlineScoreRequest(None)
-   online_score_request.email = 'dfas@fd'
-   res = online_score_request.is_correct
-   print(res)
+    request = {}
+    response, code = method_handler({"body": request, "headers": headers}, context, settings)
+    print(response, code)
+   #
+   # online_score_request = OnlineScoreRequest(None)
+   # online_score_request.email = 'dfas@fd'
+   # res = online_score_request.is_correct
+   # print(res)
