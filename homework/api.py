@@ -46,22 +46,26 @@ class BaseField(object):
         self.data = WeakKeyDictionary()
 
     def __get__(self, instance, owner):
-        return self.data.get(instance)#, self.required, self.nullable
+        return self.data.get(instance)
 
     def __set__(self, instance, value):
-        if self.is_valid(value):
+        if (self.is_valid_type(value) and value is not None) or value is None:
             self.data[instance] = value
         else:
             raise ValueError("Invalid format of field " + str(self) )
 
-    def is_valid(self, value):
+    def is_valid_type(self, value):
         return True
+
+    def isnull(self, instance):
+        return self.data[instance] is None
+
 
 
 
 
 class CharField(BaseField):
-    def is_valid(self, value):
+    def is_valid_type(self, value):
         if isinstance(value, str) or isinstance(value, unicode):
             valid = True
         else:
@@ -69,7 +73,7 @@ class CharField(BaseField):
         return valid
 
 class ArgumentsField(BaseField):
-    def is_valid(self, value):
+    def is_valid_type(self, value):
         valid = False
         if isinstance(value, dict):
             valid = True
@@ -77,8 +81,8 @@ class ArgumentsField(BaseField):
 
 
 class EmailField(CharField):
-    def is_valid(self, value):
-        valid_parent = super(EmailField, self).is_valid(value)
+    def is_valid_type(self, value):
+        valid_parent = super(EmailField, self).is_valid_type(value)
         if not valid_parent:
             valid = False
         else:
@@ -148,9 +152,19 @@ class OnlineScoreRequest(OnlineRequest):
     gender = GenderField(required=False, nullable=True)
     fields = [first_name, last_name, email, phone, birthday, gender]
 
-    def __init__(self, arguments):
-        if arguments is None:
-            pass
+    def __init__(self, first_name=None, last_name=None, email=None, phone=None,
+                 birthday=None, gender=None):
+        self.first_name = first_name
+        self.last_name = last_name
+        self.email = email
+        self.phone = phone
+        self.birthday = birthday
+        self.gender = gender
+
+    @property
+    def is_correct(self):
+        super
+
 
 
 
@@ -162,10 +176,10 @@ class MethodRequest(object):
     method = CharField(required=True, nullable=False)
 
     def __init__(self, login=None, token=None, arguments=None, method=None, account=None):
-        self.account.value = account
-        self.login.value = login
-        self.token.value = token
-        self.arguments.value = arguments
+        self.account = account
+        self.login = login
+        self.token = token
+        self.arguments = arguments
         self.method = method
 
     @property
@@ -195,6 +209,8 @@ def method_handler(request, ctx, store):
 
     if request['body']:
         request_body = MethodRequest(**request['body'])
+        if not check_auth(request_body):
+            return 'bad auth', FORBIDDEN
 
         if request_body.method == 'online_score':
             online_request = OnlineScoreRequest(**request_body.arguments)
