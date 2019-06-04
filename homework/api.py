@@ -261,14 +261,20 @@ def method_handler(request, ctx, store):
 
     if request['body']:
         request_body = MethodRequest(**request['body'])
+        if request_body.login is None:
+            return 'No login provided', INVALID_REQUEST
         if not check_auth(request_body):
-            return 'bad auth', FORBIDDEN
+            return 'Invalid credentials', FORBIDDEN
+        if request_body.method is None:
+            return  'No method provided', INVALID_REQUEST
 
         if request_body.method == 'online_score':
             try:
                 online_request = OnlineScoreRequest(**request_body.arguments)
             except ValueError:
                 return 'wrong fields', INVALID_REQUEST
+            except TypeError:
+                return 'No arguments', INVALID_REQUEST
 
             if online_request.is_correct and not request_body.is_admin:
                 response = {'score': get_score(**request['body']['arguments'])}
@@ -282,7 +288,7 @@ def method_handler(request, ctx, store):
             else:
                 return 'necessary fields not specified', INVALID_REQUEST
 
-        elif request['body']['method'] == 'clients_interesets':
+        elif request_body.method == 'clients_interests':
             online_request = ClientsInterestsRequest(**request_body.arguments)
 
     else:
