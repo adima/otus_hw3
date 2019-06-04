@@ -49,7 +49,9 @@ class BaseField(object):
         return self.data.get(instance)
 
     def __set__(self, instance, value):
-        if (self.is_valid_type(value) and value is not None) or value is None:
+        if value is None:
+            self.data[instance] = value
+        elif self.is_valid_type(value) and value is not None:
             self.data[instance] = value
         else:
             raise ValueError("Invalid format of field " + str(self) )
@@ -95,20 +97,47 @@ class EmailField(CharField):
 
 
 class PhoneField(CharField):
-    pass
+    def is_valid_type(self, value):
+        valid_parent = super(PhoneField, self).is_valid_type(value)
+        if not valid_parent:
+            valid = False
+        else:
+            if len(value) == 11 and value[0] == '7':
+                valid = True
+            else:
+                valid = False
+        return valid
+
+
 
 
 class DateField(BaseField):
     pass
 
 
+
 class BirthDayField(BaseField):
-    pass
+    def is_valid_type(self, value):
+        try:
+            dt = datetime.datetime.strptime(value, '%d.%m.%Y')
+            delta = datetime.datetime.now() - dt
+            if delta.days / 365.25 < 70:
+                valid = True
+            else:
+                valid = False
+        except ValueError:
+            valid = False
+
+        return valid
 
 
 class GenderField(BaseField):
-    pass
-
+    def is_valid_type(self, value):
+        if value in [0, 1, 2]:
+            valid = True
+        else:
+            valid = False
+        return valid
 
 class ClientIDsField(BaseField):
     pass
@@ -163,7 +192,14 @@ class OnlineScoreRequest(OnlineRequest):
 
     @property
     def is_correct(self):
-        super
+        # correct_par = super(OnlineScoreRequest, self).is_correct
+        if (self.first_name is not None and self.last_name is not None) or \
+            (self.phone is not None and self.email is not None) or \
+                (self.gender is not None and self.birthday is not None):
+            correct = True
+        else:
+            correct = False
+        return correct
 
 
 
@@ -213,25 +249,28 @@ def method_handler(request, ctx, store):
             return 'bad auth', FORBIDDEN
 
         if request_body.method == 'online_score':
-            online_request = OnlineScoreRequest(**request_body.arguments)
-            if online_request.is_correct and not request_body.is_admin:
-                response = get_score(**request['body']['arguments'])
-                code = OK
-            elif online_request.is_correct and request_body.is_admin:
-                response = 42
-                code = OK
+            try:
+                online_request = OnlineScoreRequest(**request_body.arguments)
+            except ValueError:
+                return 'wrong fields', INVALID_REQUEST
 
+            if online_request.is_correct and not request_body.is_admin:
+                response = {'score': get_score(**request['body']['arguments'])}
+                code = OK
+                return response, code
+            elif online_request.is_correct and request_body.is_admin:
+                response = {'score': 42}
+                code = OK
+                return response, code
             else:
-                response = 'wrong fields'
-                code = INVALID_REQUEST
+                return 'necessary fields not specified', INVALID_REQUEST
 
         elif request['body']['method'] == 'clients_interesets':
             online_request = ClientsInterestsRequest(**request_body.arguments)
 
     else:
         response, code = 'Empty request', INVALID_REQUEST
-
-    return response, code
+        return response, code
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
@@ -295,16 +334,18 @@ if __name__ == "__main__":
     context = {}
     headers = {}
     settings = {}
-    # arguments = {'email': 'stupnikov@otus.ru', 'phone': '79175002040'}
-    # arguments = {"phone": "79175002040", "email": "stupnikov@otus.ru"}
+    arguments = {'email': 'stupnikov@otus.ru', 'phone': '79175002040'}
+    # arguments = {'phone': '79175002040', 'birthday': '01.01.1890', 'email': 'stupnikov@otus.ru', 'gender': 1}
     # request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
-    # request = {"account": "horns&hoofs", "login": "admin", "method": "online_score", "arguments": arguments}
-    # request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
-    request = {}
+    request = {"account": "horns&hoofs", "login": "admin", "method": "online_score", "arguments": arguments}
+    request["token"] = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
+    # msg = request.get("account", "") + request.get("login", "") + SALT
+    # request["token"] = hashlib.sha512(msg).hexdigest()
+    # request = {}
     response, code = method_handler({"body": request, "headers": headers}, context, settings)
     print(response, code)
-   #
-   # online_score_request = OnlineScoreRequest(None)
-   # online_score_request.email = 'dfas@fd'
-   # res = online_score_request.is_correct
-   # print(res)
+
+    # online_score_request = OnlineScoreRequest(email="dfdf@dfdf.ru")
+    # online_score_request.email = 'dfas@fd'
+    # res = online_score_request.is_correct
+    # print(res)
