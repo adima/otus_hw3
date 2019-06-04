@@ -96,12 +96,14 @@ class EmailField(CharField):
 
 
 
-class PhoneField(CharField):
+class PhoneField(BaseField):
     def is_valid_type(self, value):
-        valid_parent = super(PhoneField, self).is_valid_type(value)
+        valid_parent = type(value) in [str, int, unicode]
         if not valid_parent:
             valid = False
         else:
+            if type(value) == int:
+                value = str(value)
             if len(value) == 11 and value[0] == '7':
                 valid = True
             else:
