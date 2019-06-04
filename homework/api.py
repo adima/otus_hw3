@@ -181,6 +181,7 @@ class OnlineScoreRequest(OnlineRequest):
     gender = GenderField(required=False, nullable=True)
     fields = [first_name, last_name, email, phone, birthday, gender]
 
+
     def __init__(self, first_name=None, last_name=None, email=None, phone=None,
                  birthday=None, gender=None):
         self.first_name = first_name
@@ -200,6 +201,19 @@ class OnlineScoreRequest(OnlineRequest):
         else:
             correct = False
         return correct
+
+    def return_non_empty_fields(self):
+        fields_dict = {
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'email': self.email,
+            'phone': self.phone,
+            'birthday': self.birthday,
+            'gender': self.gender,
+        }
+        non_empty = [k for k, v in fields_dict.items() if v is not None]
+        return non_empty
+
 
 
 
@@ -257,6 +271,7 @@ def method_handler(request, ctx, store):
             if online_request.is_correct and not request_body.is_admin:
                 response = {'score': get_score(**request['body']['arguments'])}
                 code = OK
+                ctx['has'] = online_request.return_non_empty_fields()
                 return response, code
             elif online_request.is_correct and request_body.is_admin:
                 response = {'score': 42}
