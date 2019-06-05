@@ -150,7 +150,11 @@ class GenderField(BaseField):
 
 class ClientIDsField(BaseField):
     def is_valid_type(self, value):
-        valid = type(value) == list
+        valid = False
+        if type(value) == list:
+            if len(value) > 0:
+                if all([type(id_) == int for id_ in value]):
+                    valid = True
         return valid
 
 
@@ -173,7 +177,7 @@ class OnlineRequest(object):
         return correct
 
 
-class ClientsInterestsRequest(object):
+class ClientsInterestsRequest(OnlineRequest):
     client_ids = ClientIDsField(required=True, nullable=False)
     date = DateField(required=False, nullable=True)
     fields = [client_ids, date]
@@ -298,7 +302,19 @@ def method_handler(request, ctx, store):
                 return 'necessary fields not specified', INVALID_REQUEST
 
         elif request_body.method == 'clients_interests':
-            online_request = ClientsInterestsRequest(**request_body.arguments)
+            try:
+                clients_request = ClientsInterestsRequest(**request_body.arguments)
+            except ValueError:
+                return 'wrong fields', INVALID_REQUEST
+            except TypeError:
+                return 'No arguments', INVALID_REQUEST
+            if clients_request.is_correct:
+                response = {cl: get_interests(store, cl) for cl in clients_request.client_ids}
+                code = OK
+                ctx['nclients'] = len(clients_request.client_ids)
+                return response, code
+            else:
+                return 'necessary fields not specified', INVALID_REQUEST
 
     else:
         response, code = 'Empty request', INVALID_REQUEST
