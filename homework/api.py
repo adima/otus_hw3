@@ -114,22 +114,29 @@ class PhoneField(BaseField):
 
 
 class DateField(BaseField):
-    pass
-
-
-
-class BirthDayField(BaseField):
     def is_valid_type(self, value):
         try:
+            dt = datetime.datetime.strptime(value, '%d.%m.%Y')
+            valid = True
+        except ValueError:
+            valid = False
+
+        return valid
+
+
+
+class BirthDayField(DateField):
+    def is_valid_type(self, value):
+        parent_valid = super(BirthDayField, self).is_valid_type(value)
+        if parent_valid:
             dt = datetime.datetime.strptime(value, '%d.%m.%Y')
             delta = datetime.datetime.now() - dt
             if delta.days / 365.25 < 70:
                 valid = True
             else:
                 valid = False
-        except ValueError:
+        else:
             valid = False
-
         return valid
 
 
@@ -142,7 +149,9 @@ class GenderField(BaseField):
         return valid
 
 class ClientIDsField(BaseField):
-    pass
+    def is_valid_type(self, value):
+        valid = type(value) == list
+        return valid
 
 
 
@@ -165,7 +174,7 @@ class OnlineRequest(object):
 
 
 class ClientsInterestsRequest(object):
-    client_ids = ClientIDsField(required=True)
+    client_ids = ClientIDsField(required=True, nullable=False)
     date = DateField(required=False, nullable=True)
     fields = [client_ids, date]
 
